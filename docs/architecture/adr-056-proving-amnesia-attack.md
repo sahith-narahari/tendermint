@@ -7,11 +7,18 @@
 
 ## Context
 
-Whilst most created evidence of malicious behaviour is self evident such that any individual can verify them independently there are types of evidence, known as global evidence, that require further collaboration from the network in order to accumulate enough information to create evidence that is individually verifiable and can therefore be processed through consensus. Fork Accountability as a whole constitutes of detection, proving and punishing. This ADR addresses how to prove infringement from global evidence that is sent to a full node.
+Whilst most created evidence of malicious behaviour is self evident such that any individual can verify them independently there are types of evidence, known as global evidence, that require further collaboration from the network in order to accumulate enough information to create evidence that is individually verifiable and can therefore be processed through consensus. [Fork Accountability](https://github.com/tendermint/spec/blob/master/spec/consensus/light-client/accountability.md) as a whole constitutes of detection, proving and punishing. This ADR addresses how to prove infringement from global evidence that is sent to a full node.
 
 The currently only known form of global evidence stems from [flip flopping](https://github.com/tendermint/spec/blob/master/spec/consensus/light-client/accountability.md#flip-flopping) attacks. The schematic below explains one scenario where an amnesia attack, a form of flip flopping, can occur such that C1 and C2 commit different blocks.
 
 ![](../imgs/tm-amnesia-attack.png)
+
+1. C1 and F send PREVOTE messages
+2. C1 sends PRECOMMIT for round 1
+3. A new round is started, C2 and F send PREVOTE messages
+4. C2 and F then send PRECOMMIT messages
+5. F breaks the lock and goes back and sends PRECOMMIT messages in round 1
+
 
 This creates a fork on the main chain.  Back to the past, another form of flip flopping, creates a light fork (capable of fooling those not involved in consensus), in a similar way, with F taking the precommits from C1 and forging a commit from them.
 
@@ -38,11 +45,11 @@ type PotentialAmnesiaEvidence struct {
 
 The evidence should contain the precommit votes for the intersection of validators that voted for both rounds. The votes should be all valid and the height and time that the infringement was made should be within:
 
-`Bonding period - Amnesia trial period - Gossip safety margin`
+`Trusting period - Amnesia trial period - Gossip safety margin`
 
 With reference to the honest nodes, C1 and C2, in the schematic, C2 will not PRECOMMIT an earlier round, but it is likely, if a node in C1 were to recieve +2/3 PREVOTE's or PRECOMMIT's for a higher round, that it would remove the lock and PREVOTE and PRECOMMIT for the later round. Therefore, unfortunately it is not a case of simply punishing all nodes that have double voted in the `PotentialAmnesiaEvidence`.
 
-Instead we use the Proof of Lock Change (PoLC) referred to in the [consensus spec](https://github.com/tendermint/spec/blob/master/spec/consensus/consensus.md#terms). When an honest node votes again for a later round, in very rare cases, it will generate the PoLC and store it in the evidence reactor for a time equal to the `Bonding Period`
+Instead we use the Proof of Lock Change (PoLC) referred to in the [consensus spec](https://github.com/tendermint/spec/blob/master/spec/consensus/consensus.md#terms). When an honest node votes again for a later round, in very rare cases, it will generate the PoLC and store it in the evidence reactor for a time equal to the `Trusting Period`
 
 ```
 type ProofOfLockChange struct {
